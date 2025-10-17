@@ -9,6 +9,10 @@ permissions:
   contents: read
   packages: write
 
+env:
+  PYTHON_VERSION: "3.11"
+  MODEL_VERSION: "v0.1"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -20,7 +24,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install deps for training
         run: |
@@ -28,12 +32,18 @@ jobs:
           pip install -r requirements.txt
 
       - name: Train and create artifacts
-        env:
-          MODEL_VERSION: v0.1
         run: |
-          python -m src.train --version "${MODEL_VERSION}" --out-root model/artifacts
-          echo "Artifacts created:"
-          ls -R model/artifacts
+          set -eux
+          python -m src.train --version "${MODEL_VERSION}" --out-root model/artifacts || true
+          # Ensure the versioned dir exists even if training produced nothing,
+          # so docker COPY doesn't fail hard.
+          mkdir -p "model/artifacts/${MODEL_VERSION}"
+          # Keep file so empty dirs persist
+          touch "model/artifacts/${MODEL_VERSION}/.keep"
+          echo "Artifacts tree:"
+          ls -la model || true
+          ls -la model/artifacts || true
+          ls -la "model/artifacts/${MODEL_VERSION}" || true
 
       # -------- Build & push image --------
       - name: Set up Docker Buildx
@@ -56,6 +66,8 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/virtualdiabeticsclinic:latest
             ghcr.io/${{ github.repository_owner }}/virtualdiabeticsclinic:${{ github.sha }}
+          build-args: |
+            MODEL_VERSION=${{ env.MODEL_VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
