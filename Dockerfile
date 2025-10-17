@@ -12,7 +12,7 @@ COPY requirements.txt .
 RUN python -m pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy service code + prebuilt artifacts from the repo (CI step generates these)
+# Copy service code + (possibly empty) artifacts dir from CI
 COPY src ./src
 COPY model/artifacts ./model/artifacts
 
@@ -22,9 +22,5 @@ ENV MODEL_VERSION=${MODEL_VERSION}
 ENV MODEL_DIR=/app/model/artifacts/${MODEL_VERSION}
 
 EXPOSE 8080
-# non-root keeps it tidy; python:3.11-slim has 'nobody'
 USER nobody
-
-# With PYTHONPATH=/app/src and code under src/app/main.py this imports fine
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
-
