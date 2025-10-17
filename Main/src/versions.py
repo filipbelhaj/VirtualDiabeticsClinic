@@ -1,3 +1,0 @@
-V01 = "v0.1"
-
-DEFAULT_VERSION = V01
