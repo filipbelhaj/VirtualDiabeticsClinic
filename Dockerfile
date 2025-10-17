@@ -1,47 +1,59 @@
-# --- build (train) stage ---
+# syntax=docker/dockerfile:1.7
+
+########## build (train) stage ##########
 FROM python:3.11-slim AS train
 WORKDIR /app
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app/src
+
+# Install deps first for better layer caching
 COPY requirements.txt .
-RUN python -m pip install --upgrade pip && pip install -r requirements.txt
+RUN python -m pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
+# Copy source
 COPY src ./src
 
-# Declare ARG here and give a default
+# Version arg (default) -> env so RUN can use it
 ARG MODEL_VERSION=v0.1
-# Promote to ENV so later RUN lines can use it
 ENV MODEL_VERSION=${MODEL_VERSION}
 
 # Train and write artifacts into /app/model/artifacts/<version>
-RUN python -m src.train --version "${MODEL_VERSION}" --out-root model/artifacts
+RUN python -m src.train --version "${MODEL_VERSION}" --out-root /app/model/artifacts
 
-# --- runtime stage ---
+
+########## runtime stage ##########
 FROM python:3.11-slim AS runtime
 WORKDIR /app
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app/src
+
+# Non-root user
 RUN adduser --disabled-password --gecos "" appuser
 
-# Bring trained artifacts
-COPY --from=train /app/model /app/model
-
+# Install only runtime deps
 COPY requirements.txt .
-RUN python -m pip install --upgrade pip && pip install -r requirements.txt
+RUN python -m pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-COPY app ./app
-COPY src ./src
+# Bring application source
+COPY --chown=appuser:appuser src ./src
 
-# You must redeclare ARG in this stage if you reference it
+# Bring trained artifacts from build stage
 ARG MODEL_VERSION=v0.1
 ENV MODEL_VERSION=${MODEL_VERSION}
 ENV MODEL_DIR=/app/model/artifacts/${MODEL_VERSION}
+COPY --from=train --chown=appuser:appuser /app/model /app/model
 
 EXPOSE 8080
 USER appuser
 
-# Optional: install wget if you keep this healthcheck
-# RUN apt-get update && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
-# HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-#   CMD wget -qO- http://127.0.0.1:8080/health || exit 1
-
+# If your FastAPI app is under src/app/main.py,
+# PYTHONPATH=/app/src makes `app.main:app` importable.
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
