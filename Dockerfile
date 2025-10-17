@@ -1,35 +1,26 @@
-# Lightweight, multi-arch base image
+# Multi-arch base (works on amd64 + arm64)
 FROM python:3.11-slim
 
-# Avoid .pyc, use unbuffered logs
+# Fast, predictable Python and ensure app package import path
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/src
 
-# Create app dir
+# Work from /app
 WORKDIR /app
 
-# Install system deps (if you need build tools, uncomment)
-# RUN apt-get update && apt-get install -y --no-install-recommends build-essential && rm -rf /var/lib/apt/lists/*
-
-# Copy dependency files first for better caching
-COPY requirements.txt ./
+# Install deps first for better layer caching
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source
+# Copy only what we need
 COPY src ./src
 
-# If your API needs model artifacts at runtime, either:
-# A) generate them during build (uncomment the next two lines and ensure the train script exists)
-# COPY Makefile ./Makefile
-# RUN make train-v01
-# or B) mount artifacts at runtime (document this in README)
+# (Optional) copy model artifacts if you want them in the image
+# COPY model/artifacts/v0.1 ./model/artifacts/v0.1
 
 EXPOSE 8080
 
-# Healthcheck (optional)
-# HEALTHCHECK CMD wget -qO- http://localhost:8080/health || exit 1
-
-# Start FastAPI (package name is "app" under src/)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Start the FastAPI app (module = app.main:app)
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
