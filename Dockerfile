@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+oFROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
@@ -17,4 +17,4 @@ EXPOSE 8080
 ENV MODULE_PATH=main:app
 
 # Use --app-dir so you don't need an "app" package/folder
-CMD uvicorn --app-dir /app/src ${MODULE_PATH} --host 0.0.0.0 --port 8080
+CMD uvicorn --app-dir /src ${MODULE_PATH} --host 0.0.0.0 --port 8080
