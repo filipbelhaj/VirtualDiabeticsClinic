@@ -32,3 +32,4 @@ EXPOSE 8080
 
 # Start FastAPI (package name is "app" under src/)
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+
