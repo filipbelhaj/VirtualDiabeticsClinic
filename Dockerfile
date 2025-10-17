@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt
 RUN PIP install -no-cache-dir -r requirements.txt
 
-COPY ..
+COPY . .
 
 RUN python src/train.py
 
