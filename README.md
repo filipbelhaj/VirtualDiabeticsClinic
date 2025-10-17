@@ -7,5 +7,4 @@ A tiny ML service that predicts short-term diabetes progression (regression on t
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
-make train-v01      # writes model/artifacts/v0.1/*
 uvicorn app.main:app --port 8080
